@@ -7,22 +7,17 @@ This project is header-only, so simply include BigNum.hpp header in your project
 	
 	#include "BigNum.hpp"
 	
+	using namespace std;
+	
 	int main(){
-		try{
-			bigint_t x = 334_bigint;
-			bigint_t y = x << 114514;
-		}
-		catch(std::out_of_range &e){
-			std::cout << e.what() << std::endl;
-			throw ;
-		}
-		catch(std::domain_error &e){
-			std::cout << e.what() << std::endl;
-			throw ;
-		}
+		bigint_t x = 334_bigint;
+		bigint_t y = x << 114514;
+		std::cout << std::hex << y << std::endl;
 		
 		return 0;
 	}
+
+You can check our [wiki](https://github.com/gnaggnoyil/bignumplusplus/wiki) for more usages.
 
 ### Platform Support
 
@@ -39,6 +34,8 @@ In general any platform that provides 8-bit and 32-bit integers might work. Any 
 * clean up interface.
 * more test
 * more platform support and portability
+* make BigInt work on any data length
+* a better simulation for basic_ostream::operator>> so that the BigInt behaves as if a native integer.
 * pow, log, exp, ...
 * minus radix support for radix conversion
 * big float
