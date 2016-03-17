@@ -7,11 +7,11 @@ This project is header-only, so simply include BigNum.hpp header in your project
 	
 	#include "BigNum.hpp"
 	
-	using namespace std;
+	using namespace bignum;
 	
 	int main(){
-		bigint_t x = 334_bigint;
-		bigint_t y = x << 114514;
+		bigint_t x = 114514_bigint;
+		bigint_t y = x << 334;
 		std::cout << std::hex << y << std::endl;
 		
 		return 0;
