@@ -1,6 +1,6 @@
 ### Usage
 
-This project is header-only, so simply include bignum.hpp header in your project and then you can use this library like the following:
+This project is header-only, so simply include BigNum.hpp header in your project and then you can use this library like the following:
 
 	#include <stdexcept>
 	#include <iostream>
