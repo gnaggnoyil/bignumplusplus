@@ -656,7 +656,21 @@ namespace bignum{
 		}
 		inline BigInt operator-() &&{
 			changeSign();
-			return *this;
+			return std::move(*this);
+		}
+		
+		inline BigInt abs() &&{
+			if(!positive){
+				changeSign();
+			}
+			return std::move(*this);
+		}
+		inline BigInt abs() const &{
+			BigInt tmp = *this;
+			if(!positive){
+				tmp.changeSign();
+			}
+			return tmp;
 		}
 		
 		// swap two BigInts
@@ -933,6 +947,7 @@ namespace bignum{
 			return tmp;
 		}
 		
+		// A = q * B + r no matter whether A or B is negative or not
 		// self divide
 		inline BigInt &operator/=(BigInt &_rhs){
 			if(this != &_rhs){
@@ -999,44 +1014,48 @@ namespace bignum{
 				throw std::domain_error("divide by zero");
 				// errno = ERANGE;
 			}
-			std::tie(*this, std::ignore) = std::move(*this).divideByInt(_rhs, std::integral_constant<bool, isSigned<Integer>::value>{});
+			std::tie(*this, std::ignore) = std::move(*this).divideByInt(_rhs, 
+				std::integral_constant<bool, isSigned<Integer>::value>{});
 			return *this;
 		}
 		
 		// TODO: avoid unnecessary memory allocation and construction
 		template <class BigIntRef1, class BigIntRef2, 
-			typename std::enable_if<isRLRef<BigInt, BigIntRef1 &&>::value && isRLRef<BigInt, BigIntRef2 &&>::value>::type * = nullptr>
+			typename std::enable_if<isRLRef<BigInt, BigIntRef1 &&>::value>::type * = nullptr, 
+			typename std::enable_if<isRLRef<BigInt, BigIntRef2 &&>::value>::type * = nullptr>
 		inline friend BigInt operator/(BigIntRef1 &&_lhs, BigIntRef2 &&_rhs){
 			BigInt tmp = std::forward<BigIntRef1>(_lhs);
 			tmp /= std::forward<BigIntRef2>(_rhs);
 			return tmp;
 		}
 		template <class BigIntRef, typename Integer, 
-			typename std::enable_if<isRLRef<BigInt, BigIntRef &&>::value && std::is_integral<Integer>::value>::type * = nullptr>
+			typename std::enable_if<isRLRef<BigInt, BigIntRef &&>::value>::type * = nullptr, 
+			typename std::enable_if<std::is_integral<Integer>::value>::type * = nullptr>
 		inline friend BigInt operator/(BigIntRef &&_lhs, Integer &_rhs){
 			if(_rhs == 0){
 				throw std::domain_error("divide by zero");
 				// errno = ERANGE;
 			}
-			return std::move(std::forward<BigIntRef>(_lhs).divideByInt(_rhs, std::integral_constant<bool, isSigned<Integer>::value>{}));
+			BigInt res(nullptr);
+			std::tie(res, std::ignore) = std::forward<BigIntRef>(_lhs).divideByInt(_rhs, 
+				std::integral_constant<bool, isSigned<Integer>::value>{});
+			return res;
 		}
-		/*template <typename Integer, class BigIntRef, 
-			typename std::enable_if<std::is_integral<Integer>::value && isRLRef<BigInt, BigIntRef &&>::value>::type * = nullptr>
-		inline friend Integer operator/(Integer &_lhs, BigIntRef &&_rhs){
+		template<typename Integer, class BigIntRef, 
+			typename std::enable_if<std::is_integral<Integer>::value>::type * = nullptr, 
+			typename std::enable_if<isRLRef<BigInt, BigIntRef &&>::value>::type * = nullptr>
+		inline friend Integer operator/(Integer _lhs, BigIntRef &&_rhs){
 			if(_rhs.isZero()){
 				throw std::domain_error("divide by zero");
 				// errno = ERANGE;
 			}
-			std::int8_t comp = std::forward<BigIntRef>(_rhs).compareInt(_rhs, std::integral_constant<bool, isSigned<Integer>::value>{});
-			if(comp == -1){
-				return 0;
-			}
-			
-		}*/
+			return std::forward<BigIntRef>(_rhs).divideOfInt(_lhs, 
+				std::integral_constant<bool, isSigned<Integer>::value>{}).first;
+		}
 		
 		// self modular
 		inline BigInt &operator%=(BigInt &&_rhs){
-			bool _positive = positive == _rhs.positive;
+			bool _positive = positive;
 			positive = true;
 			_rhs.positive = true;
 			*this = std::move(*this).modularBy(std::move(_rhs));
@@ -1050,7 +1069,7 @@ namespace bignum{
 				positive = true;
 				_rhs.positive = true;
 				*this = std::move(*this).modularBy(_rhs);
-				positive = _positive1 == _positive2;
+				positive = _positive1;
 				_rhs.positive = _positive2;
 				return *this;
 			}
@@ -1061,22 +1080,18 @@ namespace bignum{
 		}
 		inline BigInt &operator%=(const BigInt &_rhs){
 			if(this != &_rhs){
+				bool _positive = positive;
+				positive = true;
 				if(_rhs.positive){
-					bool _positive = positive;
-					positive = true;
 					*this = std::move(*this).modularBy(_rhs);
-					positive = _positive;
-					return *this;
 				}
 				else{
-					bool _positive = !positive;
-					positive = true;
 					BigInt tmp = _rhs;
 					tmp.changeSign();
 					*this = std::move(*this).modularBy(tmp);
-					positive = _positive;
-					return *this;
 				}
+				positive = _positive;
+				return *this;
 			}
 			else{
 				zerolize();
@@ -1085,11 +1100,34 @@ namespace bignum{
 		}
 		
 		template <class BigIntRef1, class BigIntRef2, 
-			typename std::enable_if<isRLRef<BigInt, BigIntRef1 &&>::value && isRLRef<BigInt, BigIntRef2 &&>::value>::type * = nullptr>
+			typename std::enable_if<isRLRef<BigInt, BigIntRef1 &&>::value>::type * = nullptr, 
+			typename std::enable_if<isRLRef<BigInt, BigIntRef2 &&>::value>::type * = nullptr>
 		inline friend BigInt operator%(BigIntRef1 &&_lhs, BigIntRef2 &&_rhs){
 			BigInt tmp = std::forward<BigIntRef1>(_lhs);
 			tmp %= std::forward<BigIntRef2>(_rhs);
 			return tmp;
+		}
+		template <class BigIntRef, typename Integer, 
+			typename std::enable_if<isRLRef<BigInt, BigIntRef &&>::value>::type * = nullptr, 
+			typename std::enable_if<std::is_integral<Integer>::value>::type * = nullptr>
+		inline Integer operator%(BigIntRef &&_lhs, Integer &_rhs){
+			if(_rhs.isZero()){
+				throw std::domain_error("divide by zero");
+				// errno = ERANGE;
+			}
+			return std::forward<BigIntRef>(_lhs).divideByInt(_rhs, 
+				std::integral_constant<bool, isSigned<Integer>::value>{});
+		}
+		template<typename Integer, class BigIntRef, 
+			typename std::enable_if<std::is_integral<Integer>::value>::type * = nullptr, 
+			typename std::enable_if<isRLRef<BigInt, BigIntRef &&>::value>::type * = nullptr>
+		inline friend Integer operator%(Integer _lhs, BigIntRef &&_rhs){
+			if(_rhs.isZero()){
+				throw std::domain_error("divide by zero");
+				// errno = ERANGE;
+			}
+			return std::forward<BigIntRef>(_rhs).divideOfInt(_lhs, 
+				std::integral_constant<bool, isSigned<Integer>::value>{}).second;
 		}
 		
 		// input
@@ -1821,20 +1859,25 @@ namespace bignum{
 				return -1;
 			}
 			
-			return buf.compareUnsignedIntBuffer(_rhs, std::integral_constant<SizeT, (sizeof(Integer) * CHAR_BIT + ENTRY_SIZE - 1) / ENTRY_SIZE>());
+			return buf.compareUnsignedIntBuffer(_rhs, 
+				std::integral_constant<SizeT, (sizeof(Integer) * CHAR_BIT + ENTRY_SIZE - 1) / ENTRY_SIZE>{});
 		}
 		// compare with signed integer
 		template <typename Integer>
 		inline std::int8_t compareInt(Integer _rhs, std::true_type) const{
+			using Unsigned = typename std::make_unsigned<Integer>::type;
+			
 			if(_rhs < Integer(0)){
 				if(positive){
 					return 1;
 				}
 				// a simple hack. may contain bugs
-				return -buf.compareUnsignedIntBuffer(static_cast<typename std::make_unsigned<Integer>::type>((~_rhs) + 1), std::integral_constant<SizeT, (sizeof(Integer) * CHAR_BIT + ENTRY_SIZE - 1) / ENTRY_SIZE>());
+				return -buf.compareUnsignedIntBuffer(static_cast<Unsigned>((~_rhs) + 1), 
+					std::integral_constant<SizeT, (sizeof(Unsigned) * CHAR_BIT + ENTRY_SIZE - 1) / ENTRY_SIZE>());
 			}
 			
-			return buf.compareUnsignedIntBuffer(static_cast<typename std::make_unsigned<Integer>::type>(_rhs), std::integral_constant<SizeT, (sizeof(Integer) * CHAR_BIT + ENTRY_SIZE - 1) / ENTRY_SIZE>());
+			return buf.compareUnsignedIntBuffer(static_cast<Unsigned>(_rhs), 
+				std::integral_constant<SizeT, (sizeof(Unsigned) * CHAR_BIT + ENTRY_SIZE - 1) / ENTRY_SIZE>());
 		}
 		
 		/*inline BigInt truncateFrom(SizeT k) &&{
@@ -3084,7 +3127,8 @@ namespace bignum{
 		// unsigned integer
 		template <typename Integer>
 		inline void multiplyInt(Integer _rhs, std::false_type){
-			multiplyUnsignedInt(_rhs, std::integral_constant<bool, sizeof(Integer) * CHAR_BIT <= ENTRY_SIZE>{});
+			multiplyUnsignedInt(_rhs, 
+				std::integral_constant<bool, sizeof(Integer) * CHAR_BIT <= ENTRY_SIZE>{});
 		}
 		// signed integer
 		template <typename Integer>
@@ -3097,11 +3141,11 @@ namespace bignum{
 					return ;
 				}
 				
-				multiplyUnsignedInt(static_cast<typename std::make_unsigned<Integer>::type>(-_rhs), std::false_type());
+				multiplyUnsignedInt(static_cast<typename std::make_unsigned<Integer>::type>(-_rhs), std::false_type{});
 				return ;
 			}
 			else{
-				multiplyUnsignedInt(static_cast<typename std::make_unsigned<Integer>::type>(_rhs), std::false_type());
+				multiplyUnsignedInt(static_cast<typename std::make_unsigned<Integer>::type>(_rhs), std::false_type{});
 				return ;
 			}
 		}
@@ -3417,7 +3461,12 @@ namespace bignum{
 				(_rhs * res.first).output(std::cout);
 				std::cout.flush();*/
 #endif // _BIG_NUM_DEBUG_
-			res.second = std::move(*this) - _rhs * res.first;
+			res.second = std:move(*this);
+			if(res.second.positive){
+				assert(!isZero());
+				res.second.positive = true;
+			}
+			res.second.sub(_rhs * res.first);
 #ifdef _BIG_NUM_DEBUG_
 				/*std::cout << std::endl << "r:\t" << std::endl;
 				res.second.output(std::cout);
@@ -3459,7 +3508,12 @@ namespace bignum{
 			std::pair<BigInt, BigInt> res;
 			res.first = truncateFrom(*this, _rhs.buf.len - 1);
 			res.first.multiplyTruncate(std::forward<BigIntRef2>(miu), buf.len - _rhs.buf.len + 1);
-			res.second = *this - _rhs * res.first;
+			res.second = *this;
+			if(res.second.positive){
+				assert(!isZero());
+				res.second.positive = true;
+			}
+			res.second.sub(_rhs * res.first);
 			do{
 				if(!res.second.positive){
 					res.second += _rhs;
@@ -3486,7 +3540,12 @@ namespace bignum{
 			BigInt Q, res;
 			Q = truncateFrom(*this, _rhs.buf.len - 1);
 			Q.multiplyTruncate(std::forward<BigIntRef2>(miu), buf.len - _rhs.buf.len + 1);
-			res = std::move(*this) - _rhs * Q;
+			res = std:move(*this);
+			if(res.positive){
+				assert(!isZero());
+				res.positive = true;
+			}
+			res.sub(_rhs * Q);
 			do{
 				if(!res.positive){
 					res += _rhs;
@@ -3511,7 +3570,12 @@ namespace bignum{
 			BigInt Q, res;
 			Q = truncateFrom(*this, _rhs.buf.len - 1);
 			Q.multiplyTruncate(std::forward<BigIntRef2>(miu), buf.len - _rhs.buf.len + 1);
-			res = *this - _rhs * Q;
+			res = std:move(*this);
+			if(res.positive){
+				assert(!isZero());
+				res.positive = true;
+			}
+			res.sub(_rhs * Q);
 			do{
 				if(!res.positive){
 					res += _rhs;
@@ -3529,8 +3593,8 @@ namespace bignum{
 		
 		// assume this and _rhs are non-negative.
 		inline std::pair<BigInt, BigInt> divideByMedium(const BigInt &_rhs) &&{
-			assert(positive);
-			assert(_rhs.positive);
+			//assert(positive);
+			//assert(_rhs.positive);
 			
 			if(_rhs.isZero()){
 				throw std::domain_error("divide by zero");
@@ -3549,8 +3613,8 @@ namespace bignum{
 			return std::move(*this).barretReduction(_rhs, _rhs.newtonInverse(buf.len * ENTRY_SIZE));
 		}
 		inline std::pair<BigInt, BigInt> divideByMedium(const BigInt &_rhs) const &{
-			assert(positive);
-			assert(_rhs.positive);
+			//assert(positive);
+			//assert(_rhs.positive);
 			
 			if(_rhs.isZero()){
 				throw std::domain_error("divide by zero");
@@ -3558,7 +3622,8 @@ namespace bignum{
 			}
 			
 			if(isZero()){
-				return std::make_pair<BigInt, BigInt>(BigInt(0), BigInt(0));
+				return std::pair<BigInt, BigInt>(std::piecewise_construct_t{}, 
+					std::tuple<Ele>(0), std:::tuple<Ele>(0));
 			}
 			
 			assert(buf.len >= _rhs.buf.len);
@@ -3570,18 +3635,19 @@ namespace bignum{
 		}
 		
 		inline std::pair<BigInt, BigInt> divideBy(const BigInt &_rhs) &&{
-			assert(positive);
-			assert(_rhs.positive);
+			//assert(positive);
+			//assert(_rhs.positive);
 			if(_rhs.isZero()){
 				throw std::domain_error("divide by zero");
 				// errno = ERANGE;
 			}
 			
 			if(isZero()){
-				return std::make_pair<BigInt, BigInt>(BigInt(0), BigInt(0));
+				return std::pair<BigInt, BigInt>(std::piecewise_construct_t{}, 
+					std::tuple<Ele>(0), std:::tuple<Ele>(0));
 			}
 			if(buf.len < _rhs.buf.len){
-				return std::make_pair<BigInt, BigInt>(BigInt(0), std::move(*this));
+				return std::make_pair(BigInt(0), std::move(*this));
 			}
 			
 			if(buf.len <= _rhs.buf.len * 2){
@@ -3757,8 +3823,8 @@ namespace bignum{
 			return res;
 		}
 		inline std::pair<BigInt, BigInt> divideBy(const BigInt &_rhs) const &{
-			assert(positive);
-			assert(_rhs.positive);
+			//assert(positive);
+			//assert(_rhs.positive);
 			
 			return BigInt(*this).divideBy(_rhs);
 		}
@@ -3776,6 +3842,7 @@ namespace bignum{
 			}
 			
 			buf.shrinkToFit();
+			positive = true;
 			
 			return std::make_pair(std::move(*this), lastMod);
 		}
@@ -3783,7 +3850,8 @@ namespace bignum{
 		inline std::pair<BigInt, Unsigned> divideByUnsigned(Unsigned _rhs, std::true_type) const &{
 			using sqrEle = typename _type::squareType<Ele>::type;
 			
-			std::pair<BigInt, Unsigned> res = std::make_pair(nullptr, 0);
+			std::pair<BigInt, Unsigned> res(std::piecewise_construct_t{}, 
+				std::tuple<std::nullptr_t>(nullptr), std::tuple<Unsigned>(0));
 			
 			SizeT resLen = buf.len;
 			if(buf.data[buf.len - 1] < static_cast<Ele>(_rhs)){
@@ -3820,7 +3888,8 @@ namespace bignum{
 		// large Unsigned type
 		template <typename Unsigned>
 		inline std::pair<BigInt, Unsigned> divideByUnsigned(Unsigned _rhs, std::false_type) &&{
-			std::pair<BigInt, Unsigned> res = std::make_pair(nullptr, 0);
+			std::pair<BigInt, Unsigned> res(std::piecewise_construct_t{}, 
+				std::tuple<std::nullptr_t>(nullptr), std::tuple<Unsigned>(0));
 			
 			if((_rhs >> ENTRY_SIZE) == 0){
 				Ele _mod;
@@ -3836,7 +3905,8 @@ namespace bignum{
 		}
 		template <typename Unsigned>
 		inline std::pair<BigInt, Unsigned> divideByUnsigned(Unsigned _rhs, std::false_type) const &{
-			std::pair<BigInt, Unsigned> res = std::make_pair(nullptr, 0);
+			std::pair<BigInt, Unsigned> res(std::piecewise_construct_t{}, 
+				std::tuple<std::nullptr_t>(nullptr), std::tuple<Unsigned>(0));
 			
 			if((_rhs >> ENTRY_SIZE) == 0){
 				Ele _mod;
@@ -3852,83 +3922,131 @@ namespace bignum{
 		}
 		
 		// unsigned int
-		template <typename Integer>
+		/*template <typename Integer>
 		inline std::pair<BigInt, Integer> divideByInt(Integer _rhs, std::false_type) &&{
 			return std::move(*this).divideByUnsigned(_rhs, std::integral_constant<bool, sizeof(Integer) <= ENTRY_SIZE>{});
 		}
 		template <typename Integer>
 		inline std::pair<BigInt, Integer> divideByInt(Integer _rhs, std::false_type) const &{
 			return divideByUnsigned(_rhs, std::integral_constant<bool, sizeof(Integer) <= ENTRY_SIZE>{});
-		}
+		}*/
 		// signed int
 		template <typename Integer>
 		inline std::pair<BigInt, Integer> divideByInt(Integer _rhs, std::true_type) &&{
 			using Unsigned = typename std::make_unsigned<Integer>::type;
-			std::pair<BigInt, Integer> res = std::make_pair(nullptr, 0);
+			std::pair<BigInt, Unsigned> res(std::piecewise_construct_t{}, 
+				std::tuple<std::nullptr_t>(nullptr), std::tuple<Unsigned>(0));
+			
+			bool _positive1 = positive;
 			
 			if(_rhs > 0){
 				Unsigned _mod;
-				std::tie(res.first, _mod) = std::move(*this).divideByUnsigned(static_cast<Unsigned>(_rhs), std::false_type{});
+				std::tie(res.first, _mod) = std::move(*this).divideByUnsigned(static_cast<Unsigned>(_rhs), 
+					std::integral_constant<bool, sizeof(Unsigned) <= ENTRY_SIZE>{});
 				res.second = static_cast<Integer>(_mod);
-				return res;
-			}
-			
-			// maybe should be documented as "undefined behaviour"?
-			if(Integer(1 << (sizeof(Integer) * CHAR_BIT - 1)) == _rhs){
-				res.second = convertSingleDigit<Unsigned>(sizeof(Integer) * CHAR_BIT - 1);
-				res.second = -res.second;
-				shr(sizeof(Integer) * CHAR_BIT - 1, std::false_type{});
-				res.first = std::move(*this);
-				if(!res.first.isZero()){
-					res.first.positive = !res.first.positive;
+				if(!_positive1){
+					res.first.changeSign();
+					res.second = -res.second;
 				}
 				return res;
 			}
 			
-			Unsigned _mod;
-			std::tie(res.first, _mod) = std::move(*this).divideByUnsigned(static_cast<Unsigned>(-_rhs), std::false_type{});
-			res.second = static_cast<Integer>(-_mod);
-			if(!res.first.isZero()){
-				res.first.positive = !res.first.positive;
+			if(Integer(1 << (sizeof(Integer) * CHAR_BIT - 1)) == _rhs){
+				Unsigned _mod = convertSingleDigit<Unsigned>(sizeof(Integer) * CHAR_BIT - 1);
+				res.second = static_cast<Integer>(_mod);
+				shr(sizeof(Integer) * CHAR_BIT - 1, std::false_type{});
+				res.first = std::move(*this);
+			}
+			else{
+				Unsigned _mod;
+				std::tie(res.first, _mod) = std::move(*this).divideByUnsigned(static_cast<Unsigned>(-_rhs), 
+					std::integral_constant<bool, sizeof(Unsigned) <= ENTRY_SIZE>{});
+				res.second = static_cast<Integer>(_mod);
+			}
+			
+			
+			if(_positive1){
+				res.first.changeSign();
+			}
+			else{
+				res.second = -res.second;
 			}
 			return res;
 		}
 		template <typename Integer>
 		inline std::pair<BigInt, Integer> divideByInt(Integer _rhs, std::true_type) const &{
 			using Unsigned = typename std::make_unsigned<Integer>::type;
-			std::pair<BigInt, Integer> res = std::make_pair(nullptr, 0);
+			std::pair<BigInt, Unsigned> res(std::piecewise_construct_t{}, 
+				std::tuple<std::nullptr_t>(nullptr), std::tuple<Unsigned>(0));
+			
+			bool _positive1 = positive;
 			
 			if(_rhs > 0){
 				Unsigned _mod;
-				std::tie(res.first, _mod) = divideByUnsigned(static_cast<Unsigned>(_rhs), std::false_type{});
+				std::tie(res.first, _mod) = divideByUnsigned(static_cast<Unsigned>(_rhs), 
+					std::integral_constant<bool, sizeof(Unsigned) <= ENTRY_SIZE>{});
 				res.second = static_cast<Integer>(_mod);
-				return res;
-			}
-			
-			// maybe should be documented as "undefined behaviour"?
-			if(Integer(1 << (sizeof(Integer) * CHAR_BIT - 1)) == _rhs){
-				res.second = convertSingleDigit<Unsigned>(sizeof(Integer) * CHAR_BIT - 1);
-				res.second = -res.second;
-				res.first = *this;
-				res.first.shr(sizeof(Integer) * CHAR_BIT - 1, std::false_type{});
-				if(!res.first.isZero()){
-					res.first.positive = !res.first.positive;
+				if(!_positive1){
+					res.first.changeSign();
+					res.second = -res.second;
 				}
 				return res;
 			}
 			
-			Unsigned _mod;
-			std::tie(res.first, _mod) = divideByUnsigned(static_cast<Unsigned>(-_rhs), std::false_type{});
-			res.second = static_cast<Integer>(-_mod);
-			if(!res.first.isZero()){
-				res.first.positive = !res.first.positive;
+			if(Integer(1 << (sizeof(Integer) * CHAR_BIT - 1)) == _rhs){
+				Unsigned _mod = convertSingleDigit<Unsigned>(sizeof(Integer) * CHAR_BIT - 1);
+				res.second = static_cast<Integer>(_mod);
+				res.first = *this;
+				res.first.shr(sizeof(Integer) * CHAR_BIT - 1, std::false_type{});
+			}
+			else{
+				Unsigned _mod;
+				std::tie(res.first, _mod) = divideByUnsigned(static_cast<Unsigned>(-_rhs), 
+					std::integral_constant<bool, sizeof(Unsigned) <= ENTRY_SIZE>{});
+				res.second = static_cast<Integer>(_mod);
+			}
+			
+			if(_positive1){
+				res.first.changeSign();
+			}
+			else{
+				res.second = -res.second;
 			}
 			return res;
 		}
 		
+		// signed int
+		template <typename Integer>
+		inline std::pair<Integer, Integer> divideOfInt(Integer _lhs, std::true_type) const{
+			using Unsigned = typename std::make_unsigned<Integer>::type;
+			
+			bool _positive2 = positive;
+			
+			Unsigned _dividend;
+			if(_lhs > 0){
+				_dividend = static_cast<Unsigned>(_lhs);
+			}
+			else{
+				_dividend = static_cast<Unsigned>(~_lhs) + 1;
+			}
+			std::int8_t comp = buf.compareUnsignedIntBuffer(_dividend, 
+				std::integral_constant<SizeT, (sizeof(Unsigned) * CHAR_BIT + ENTRY_SIZE - 1) / ENTRY_SIZE>{});
+			if(comp == 1){
+				return std::make_pair(0, _lhs);
+			}
+			
+			Unsigned tmp = convertSingleDigit<Unsigned>();
+			Integer _divisior = static_cast<Integer>(tmp);
+			assert(_divisior > 0);
+			if(!_positive2){
+				_divisior = -_divisior;
+			}
+			return std::make_pair(_lhs / _divisior, _lhs % _divisior);
+		}
+		
 		inline BigInt modularByMedium(const BigInt &_rhs) &&{
-			assert(positive);
-			assert(_rhs.positive);
+			//assert(positive);
+			//assert(_rhs.positive);
 			if(_rhs.isZero()){
 				throw std::domain_error("divide by zero");
 				// errno = ERANGE;
@@ -3943,8 +4061,8 @@ namespace bignum{
 			return std::move(*this).barretResident(_rhs, _rhs.newtonInverse(buf.len * ENTRY_SIZE));
 		}
 		inline BigInt modularByMedium(const BigInt &_rhs) const &{
-			assert(positive);
-			assert(_rhs.positive);
+			//assert(positive);
+			//assert(_rhs.positive);
 			if(_rhs.isZero()){
 				throw std::domain_error("divide by zero");
 				// errno = ERANGE;
@@ -3960,8 +4078,8 @@ namespace bignum{
 		}
 		
 		inline BigInt modularBy(const BigInt &_rhs) &&{
-			assert(positive);
-			assert(_rhs.positive);
+			//assert(positive);
+			//assert(_rhs.positive);
 			if(_rhs.isZero()){
 				throw std::domain_error("divide by zero");
 				// errno = ERANGE;
@@ -4043,10 +4161,79 @@ namespace bignum{
 			}
 		}
 		inline BigInt modularBy(const BigInt &_rhs) const &{
-			assert(positive);
-			assert(_rhs.positive);
+			//assert(positive);
+			//assert(_rhs.positive);
 			
 			return BigInt(*this).modularBy(_rhs);
+		}
+		
+		// small unsigned types
+		template <typename Unsigned>
+		inline Unsigned modularByUnsigned(Unsigned _rhs, std::true_type) const{
+			using sqrEle = typename _type::squareType<Ele>::type;
+			
+			Unsigned lastMod = 0;
+			for(SizeT i = buf.len;i > 0;--i){
+				sqrEle tmp = static_cast<sqrEle>(lastMod) << ENTRY_SIZE + buf.data[i - 1];
+				lastMod = static_cast<Unsigned>(tmp % _rhs);
+			}
+			
+			return lastMod;
+		}
+		// large unsigned types
+		template <typename Unsigned>
+		inline Unsigned modularByUnsigned(Unsigned _rhs, std::false_type) &&{
+			if((_rhs >> ENTRY_SIZE) == 0){
+				Ele _mod = std::move(*this).modularByUnsigned(static_cast<Ele>(_rhs), std::true_type{});
+				return static_cast<Unsigned>(_mod);
+			}
+			
+			BigInt _mod = std::move(*this).modularBy(BigInt(_rhs));
+			return _mod.convertSingleDigit<Unsigned>();
+		}
+		template <typename Unsigned>
+		inline Unsigned modularByUnsigned(Unsigned _rhs, std::false_type) const &{
+			if((_rhs >> ENTRY_SIZE) == 0){
+				Ele _mod = modularByUnsigned(static_cast<Ele>(_rhs), std::true_type{});
+				return static_cast<Unsigned>(_mod);
+			}
+			
+			BigInt _mod = modularBy(BigInt(_rhs));
+			return _mod.convertSingleDigit<Unsigned>();
+		}
+		
+		// signed int
+		template <typename Integer>
+		inline Integer divideByInt(Integer _rhs, std::true_type) &&{
+			using Unsigned = typename std::make_unsigned<Integer>::type;
+			
+			bool _positive1 = positive;
+			
+			if(Integer(1 << (sizeof(Integer) * CHAR_BIT - 1)) == _rhs){
+				Unsigned _mod = convertSingleDigit<Unsigned>(sizeof(Integer) * CHAR_BIT - 1);
+				Integer res = static_cast<Integer>(_mod);
+				assert(res >= 0);
+				if(!_positive1){
+					res = -res;
+				}
+				return res;
+			}
+			
+			Unsigned tmp;
+			if(_rhs > 0){
+				tmp = static_cast<Unsigned>(_rhs);
+			}
+			else{
+				tmp = static_cast<Unsigned>(~_rhs) + 1;
+			}
+			Unsigned _mod = std::move(*this).modularByUnsigned(tmp, 
+				std::integral_constant<bool, sizeof(Unsigned) <= ENTRY_SIZE>{});
+			Integer res = static_cast<Integer>(_mod);
+			assert(res >= 0);
+			if(!_positive1){
+				res = -res;
+			}
+			return res;
 		}
 		
 		inline static std::vector<BigInt> decimalBaseInit(){
