@@ -496,6 +496,8 @@ namespace bignum{
 			Ptr data;
 			SizeT len, cap;
 		};// struct DigitBuffer
+		
+		struct NullTag{};
 	public:
 		// I want a more specialized version...
 		template <typename, class, typename>
@@ -550,10 +552,13 @@ namespace bignum{
 		
 		template <typename Integer, 
 			typename std::enable_if<std::is_integral<Integer>::value>::type * = nullptr>
-		/*explicit */BigInt(Integer _rhs)
+		explicit BigInt(Integer _rhs)
 			:allocator(), buf(&allocator, nullptr){
 			assignIntegral(_rhs, std::integral_constant<bool, isSigned<Integer>::value>());
 		}
+		
+		explicit BigInt(NullTag)
+			:buf(&allocator, nullptr), positive(false){}
 		
 		// copy constructor
 		BigInt(const BigInt &_rhs)
@@ -1031,7 +1036,7 @@ namespace bignum{
 		template <class BigIntRef, typename Integer, 
 			typename std::enable_if<isRLRef<BigInt, BigIntRef &&>::value>::type * = nullptr, 
 			typename std::enable_if<std::is_integral<Integer>::value>::type * = nullptr>
-		inline friend BigInt operator/(BigIntRef &&_lhs, Integer &_rhs){
+		inline friend BigInt operator/(BigIntRef &&_lhs, Integer _rhs){
 			if(_rhs == 0){
 				throw std::domain_error("divide by zero");
 				// errno = ERANGE;
@@ -1110,13 +1115,13 @@ namespace bignum{
 		template <class BigIntRef, typename Integer, 
 			typename std::enable_if<isRLRef<BigInt, BigIntRef &&>::value>::type * = nullptr, 
 			typename std::enable_if<std::is_integral<Integer>::value>::type * = nullptr>
-		inline Integer operator%(BigIntRef &&_lhs, Integer &_rhs){
-			if(_rhs.isZero()){
+		inline friend Integer operator%(BigIntRef &&_lhs, Integer _rhs){
+			if(_rhs == 0){
 				throw std::domain_error("divide by zero");
 				// errno = ERANGE;
 			}
 			return std::forward<BigIntRef>(_lhs).divideByInt(_rhs, 
-				std::integral_constant<bool, isSigned<Integer>::value>{});
+				std::integral_constant<bool, isSigned<Integer>::value>{}).second;
 		}
 		template<typename Integer, class BigIntRef, 
 			typename std::enable_if<std::is_integral<Integer>::value>::type * = nullptr, 
@@ -1475,9 +1480,6 @@ namespace bignum{
 		}
 #endif // _BIG_NUM_DEBUG_
 	private:
-		explicit BigInt(std::nullptr_t)
-			:buf(&allocator, nullptr), positive(false){}
-		
 		// case for unsigned integer
 		template <typename Integer>
 		void assignIntegral(Integer _rhs, std::false_type){
@@ -1897,7 +1899,7 @@ namespace bignum{
 				return BigInt();
 			}
 			
-			BigInt tmp(nullptr);
+			BigInt tmp(NullTag{});
 			tmp.positive = from.positive;
 			tmp.buf.setLen(from.buf.len - k);
 			tmp.buf.data = tmp.allocator.allocate(static_cast<std::size_t>(tmp.buf.cap));
@@ -1930,7 +1932,7 @@ namespace bignum{
 				return BigInt();
 			}
 			
-			BigInt tmp(nullptr);
+			BigInt tmp(NullTag{});
 			tmp.positive = from.positive;
 			tmp.buf.setLen(from.buf.len - k);
 			tmp.buf.data = tmp.allocator.allocate(static_cast<std::size_t>(tmp.buf.cap));
@@ -2283,7 +2285,7 @@ namespace bignum{
 				return *this;
 			}
 			
-			BigInt res(nullptr);
+			BigInt res(NullTag{});
 			res.buf.setLen(padLen + 1);
 			res.buf.data = res.allocator.allocate(static_cast<std::size_t>(res.buf.cap));
 			SizeT i = 0;
@@ -3391,7 +3393,7 @@ namespace bignum{
 				x[1].shl(k - lenBin - 1, std::false_type{});
 			}
 			
-			BigInt pow2 = 1;
+			BigInt pow2 = static_cast<BigInt>(1);
 			pow2.shl(k + 1, std::false_type{});
 			do{
 				x[i & 1] = x[1 - (i & 1)];
@@ -3461,7 +3463,7 @@ namespace bignum{
 				(_rhs * res.first).output(std::cout);
 				std::cout.flush();*/
 #endif // _BIG_NUM_DEBUG_
-			res.second = std:move(*this);
+			res.second = std::move(*this);
 			if(res.second.positive){
 				assert(!isZero());
 				res.second.positive = true;
@@ -3540,7 +3542,7 @@ namespace bignum{
 			BigInt Q, res;
 			Q = truncateFrom(*this, _rhs.buf.len - 1);
 			Q.multiplyTruncate(std::forward<BigIntRef2>(miu), buf.len - _rhs.buf.len + 1);
-			res = std:move(*this);
+			res = std::move(*this);
 			if(res.positive){
 				assert(!isZero());
 				res.positive = true;
@@ -3570,7 +3572,7 @@ namespace bignum{
 			BigInt Q, res;
 			Q = truncateFrom(*this, _rhs.buf.len - 1);
 			Q.multiplyTruncate(std::forward<BigIntRef2>(miu), buf.len - _rhs.buf.len + 1);
-			res = std:move(*this);
+			res = std::move(*this);
 			if(res.positive){
 				assert(!isZero());
 				res.positive = true;
@@ -3623,7 +3625,7 @@ namespace bignum{
 			
 			if(isZero()){
 				return std::pair<BigInt, BigInt>(std::piecewise_construct_t{}, 
-					std::tuple<Ele>(0), std:::tuple<Ele>(0));
+					std::tuple<Ele>(0), std::tuple<Ele>(0));
 			}
 			
 			assert(buf.len >= _rhs.buf.len);
@@ -3644,7 +3646,7 @@ namespace bignum{
 			
 			if(isZero()){
 				return std::pair<BigInt, BigInt>(std::piecewise_construct_t{}, 
-					std::tuple<Ele>(0), std:::tuple<Ele>(0));
+					std::tuple<Ele>(0), std::tuple<Ele>(0));
 			}
 			if(buf.len < _rhs.buf.len){
 				return std::make_pair(BigInt(0), std::move(*this));
@@ -3851,7 +3853,7 @@ namespace bignum{
 			using sqrEle = typename _type::squareType<Ele>::type;
 			
 			std::pair<BigInt, Unsigned> res(std::piecewise_construct_t{}, 
-				std::tuple<std::nullptr_t>(nullptr), std::tuple<Unsigned>(0));
+				std::tuple<NullTag>(NullTag{}), std::tuple<Unsigned>(0));
 			
 			SizeT resLen = buf.len;
 			if(buf.data[buf.len - 1] < static_cast<Ele>(_rhs)){
@@ -3889,7 +3891,7 @@ namespace bignum{
 		template <typename Unsigned>
 		inline std::pair<BigInt, Unsigned> divideByUnsigned(Unsigned _rhs, std::false_type) &&{
 			std::pair<BigInt, Unsigned> res(std::piecewise_construct_t{}, 
-				std::tuple<std::nullptr_t>(nullptr), std::tuple<Unsigned>(0));
+				std::tuple<NullTag>(NullTag{}), std::tuple<Unsigned>(0));
 			
 			if((_rhs >> ENTRY_SIZE) == 0){
 				Ele _mod;
@@ -3898,7 +3900,7 @@ namespace bignum{
 				return res;
 			}
 			
-			BigInt _mod(nullptr);
+			BigInt _mod(NullTag{});
 			std::tie(res.first, _mod) = std::move(*this).divideBy(BigInt(_rhs));
 			res.second = _mod.convertSingleDigit<Unsigned>();
 			return res;
@@ -3906,7 +3908,7 @@ namespace bignum{
 		template <typename Unsigned>
 		inline std::pair<BigInt, Unsigned> divideByUnsigned(Unsigned _rhs, std::false_type) const &{
 			std::pair<BigInt, Unsigned> res(std::piecewise_construct_t{}, 
-				std::tuple<std::nullptr_t>(nullptr), std::tuple<Unsigned>(0));
+				std::tuple<NullTag>(NullTag{}), std::tuple<Unsigned>(0));
 			
 			if((_rhs >> ENTRY_SIZE) == 0){
 				Ele _mod;
@@ -3915,7 +3917,7 @@ namespace bignum{
 				return res;
 			}
 			
-			BigInt _mod(nullptr);
+			BigInt _mod(NullTag{});
 			std::tie(res.first, _mod) = divideBy(BigInt(_rhs));
 			res.second = _mod.convertSingleDigit<Unsigned>();
 			return res;
@@ -3935,7 +3937,7 @@ namespace bignum{
 		inline std::pair<BigInt, Integer> divideByInt(Integer _rhs, std::true_type) &&{
 			using Unsigned = typename std::make_unsigned<Integer>::type;
 			std::pair<BigInt, Unsigned> res(std::piecewise_construct_t{}, 
-				std::tuple<std::nullptr_t>(nullptr), std::tuple<Unsigned>(0));
+				std::tuple<NullTag>(NullTag{}), std::tuple<Unsigned>(0));
 			
 			bool _positive1 = positive;
 			
@@ -3977,7 +3979,7 @@ namespace bignum{
 		inline std::pair<BigInt, Integer> divideByInt(Integer _rhs, std::true_type) const &{
 			using Unsigned = typename std::make_unsigned<Integer>::type;
 			std::pair<BigInt, Unsigned> res(std::piecewise_construct_t{}, 
-				std::tuple<std::nullptr_t>(nullptr), std::tuple<Unsigned>(0));
+				std::tuple<NullTag>(NullTag{}), std::tuple<Unsigned>(0));
 			
 			bool _positive1 = positive;
 			

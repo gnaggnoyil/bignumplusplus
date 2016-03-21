@@ -541,7 +541,7 @@ namespace bignum{
 		static constexpr LogSizeT ENTRY_SIZE = BI::ENTRY_SIZE;
 	public:
 		explicit _SmallPower2RadixAutomatic(Diff _dist, SizeT _exp)
-			:num(nullptr), dist(_dist), exp(_exp){
+			:num(typename BI::NullTag{}), dist(_dist), exp(_exp){
 			assert(dist > 0);
 			assert(exp < ENTRY_SIZE);
 			
@@ -710,7 +710,7 @@ namespace bignum{
 			assert((leftover > 0) || (num.buf.len > curI + 1));
 			SizeT _len = (leftover > 0)? (num.buf.len - curI): (num.buf.len - curI - 1);
 			
-			BI res(nullptr);
+			BI res(typename BI::NullTag{});
 			res.buf.setLen(_len);
 			res.buf.data = res.allocator.allocate(static_cast<std::size_t>(res.buf.cap));
 			SizeT i = 0;
@@ -756,7 +756,7 @@ namespace bignum{
 		static constexpr LogSizeT ENTRY_SIZE = BI::ENTRY_SIZE;
 	public:
 		explicit _LargePower2RadixAutomatic(Diff _dist, SizeT _exp)
-			:dist(_dist), exp(_exp), count(0), num(nullptr){
+			:dist(_dist), exp(_exp), count(0), num(typename BI::NullTag{}){
 			assert(dist > 0);
 			assert(exp > ENTRY_SIZE);
 			
@@ -949,7 +949,7 @@ namespace bignum{
 			assert((leftover > 0) || (num.buf.len > curI + 1));
 			SizeT _len = (leftover > 0)? (num.buf.len - curI): (num.buf.len - curI - 1);
 			
-			BI res(nullptr);
+			BI res(typename BI::NullTag{});
 			res.buf.setLen(_len);
 			res.buf.data = res.allocator.allocate(static_cast<std::size_t>(res.buf.cap));
 			SizeT i = 0;
@@ -994,7 +994,7 @@ namespace bignum{
 		static constexpr LogSizeT ENTRY_SIZE = BI::ENTRY_SIZE;
 	public:
 		explicit _ExactDigitAutomatic(Diff _dist)
-			:dist(_dist), count(0), num(nullptr){
+			:dist(_dist), count(0), num(typename BI::NullTag{}){
 			assert(_dist > 0);
 			
 			num.buf.setLen(dist);
@@ -1127,7 +1127,7 @@ namespace bignum{
 				return num;
 			}
 			
-			BI res(nullptr);
+			BI res(typename BI::NullTag{});
 			res.buf.setLen(num.buf.len - curI);
 			res.buf.data = res.allocator.allocate(static_cast<std::size_t>(res.buf.cap));
 			SizeT i = 0;

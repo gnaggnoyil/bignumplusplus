@@ -105,6 +105,8 @@ namespace bignum{
 			
 			// only a proxy, since it takes some RTTI support to truly determine equality
 			// for subtyping
+			// in C++17 it is allowed to compare an iterator with a complete different type
+			// in range-for loops. I hope this will be implemented widely soon
 			friend bool operator==(const DigitEnumIterator &i, const DigitEnumIterator &j){
 				return (i.producer == j.producer) && (i.digit == j.digit);
 			}
