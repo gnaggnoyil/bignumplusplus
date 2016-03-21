@@ -34,7 +34,7 @@ In general any platform that provides 8-bit and 32-bit integers might work. Any 
 * clean up interface.
 * more test
 * more platform support and portability
-* make BigInt work on any data length
+* make BigInt work on any data length (a.k.a make BigInt's length great again)
 * a better simulation for basic_ostream::operator>> so that the BigInt behaves as if a native integer.
 * pow, log, exp, ...
 * minus radix support for radix conversion
