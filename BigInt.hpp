@@ -3121,7 +3121,7 @@ namespace bignum{
 				return ;
 			}
 			else{
-				multiplySmall(BigInt(_rhs));
+				multiply(BigInt(_rhs));
 				return ;
 			}
 		}
