@@ -1101,7 +1101,7 @@ namespace bignum{
 		// TODO: avoid unnecessary copy/moves
 		template <class BIRef, 
 			typename std::enable_if<isRLRef<BI, BIRef &&>::value>::type * = nullptr>
-		explicit RadixConvertEnumer(BIRef _num, Digit _radix)
+		explicit RadixConvertEnumer(BIRef &&_num, Digit _radix)
 			:num(std::forward<BIRef>(_num)), radix(_radix){
 			if(!num.positive){
 				num.positive = true;
