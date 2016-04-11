@@ -85,7 +85,8 @@ namespace bignum{
 			
 			// we must ensure all the _producer arguments in all instances contain 
 			// different addresses or we are f**ked.
-			template <class Derived>
+			template <class Derived, 
+				typename std::enable_if<std::is_base_of<Producer, Derived>::value>::type * = nullptr>
 			explicit DigitEnumIterator(Derived *_producer)
 				:producer(_producer), digit(producer->_start()){}
 			
