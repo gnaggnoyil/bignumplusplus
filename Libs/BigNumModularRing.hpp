@@ -11,6 +11,19 @@ namespace bignum{
 	
 	namespace _utility{
 		
+		/*template <typename Ele, typename SizeT, SizeT P>
+		class ModularPTrait{
+		private:
+			using SqrEle = typename _type::squareType<Ele>::type;
+		public:
+			inline static Ele add(Ele _lhs, Ele _rhs){
+				return (_lhs + _rhs) % P;
+			}
+			inline static void selfAdd(Ele &_lhs, Ele _rhs){
+				_lhs = (_lhs + _rhs) % P;
+			}
+		};*/
+		
 		template <typename SizeT, typename Ele, SizeT P, Ele OMEGA>
 		class ModularP{
 		private:

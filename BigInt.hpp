@@ -2360,6 +2360,14 @@ namespace bignum{
 			}
 		}
 		
+		/*inline BigInt addFrom(const BigInt &_rhs, bool pos1, bool pos2){
+			BigInt res(NullTag{});
+			if(pos1 == pos2){
+				res.positive = pos1;
+				SizeT 
+			}
+		}*/
+		
 		inline void sub(const BigInt &_rhs){
 			try{
 				if(positive != _rhs.positive){
@@ -3464,7 +3472,7 @@ namespace bignum{
 				std::cout.flush();*/
 #endif // _BIG_NUM_DEBUG_
 			res.second = std::move(*this);
-			if(res.second.positive){
+			if(!res.second.positive){
 				assert(!isZero());
 				res.second.positive = true;
 			}
@@ -3543,7 +3551,7 @@ namespace bignum{
 			Q = truncateFrom(*this, _rhs.buf.len - 1);
 			Q.multiplyTruncate(std::forward<BigIntRef2>(miu), buf.len - _rhs.buf.len + 1);
 			res = std::move(*this);
-			if(res.positive){
+			if(!res.positive){
 				assert(!isZero());
 				res.positive = true;
 			}
@@ -3573,7 +3581,7 @@ namespace bignum{
 			Q = truncateFrom(*this, _rhs.buf.len - 1);
 			Q.multiplyTruncate(std::forward<BigIntRef2>(miu), buf.len - _rhs.buf.len + 1);
 			res = std::move(*this);
-			if(res.positive){
+			if(!res.positive){
 				assert(!isZero());
 				res.positive = true;
 			}
