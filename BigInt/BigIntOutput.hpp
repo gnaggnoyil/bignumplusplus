@@ -490,7 +490,7 @@ namespace bignum{
 		_DecimalRadix(_DecimalRadix &&) = delete;
 		
 		_DecimalRadix &operator=(const _DecimalRadix &) = delete;
-		_DecimalRadix &operator=(_DecimalRadix &) = delete;
+		_DecimalRadix &operator=(_DecimalRadix &&) = delete;
 		
 		~_DecimalRadix() = default;
 		
@@ -593,7 +593,8 @@ namespace bignum{
 					dStack.pop();
 					return trivalDigits();
 				}
-				if((std::get<0>(dStack.top()).buf.len == 1) && (std::get<0>(dStack.top()).buf.data[0] < radix)){
+				//if((std::get<0>(dStack.top()).buf.len == 1) && (std::get<0>(dStack.top()).buf.data[0] < radix)){
+				if(std::get<0>(dStack.top()).compareInt(Digit(radix), std::false_type()) == -1){
 					Digit tmp = std::get<0>(dStack.top()).buf.data[0];
 					rr = 0;
 					rd = 0;
@@ -650,7 +651,8 @@ namespace bignum{
 				}
 				dStack.pop();
 				
-				if((qr.first.buf.len == 1) && (qr.first.buf.data[0] < radix)){
+				//if((qr.first.buf.len == 1) && (qr.first.buf.data[0] < radix)){
+				if(qr.first.compareInt(Digit(radix), std::false_type{}) == -1){
 					assert(!qr.first.isZero());
 					Digit tmp = qr.first.buf.data[0];
 					if(qLen == 0){
@@ -668,7 +670,8 @@ namespace bignum{
 						fd = 0;
 						return trivalDigits();
 					}
-					if((qr.second.buf.len == 1) && (qr.second.buf.data[0] < radix)){
+					//if((qr.second.buf.len == 1) && (qr.second.buf.data[0] < radix)){
+					if(qr.second.compareInt(Digit(radix), std::false_type()) == -1){
 						ed = qr.second.buf.data[0];
 						rd = 0;
 						rr = rLen - 1;
