@@ -31,7 +31,7 @@ In general any platform that provides 8-bit and 32-bit integers might work. Any 
 
 * a full manual and a full document
 * clean up unused code
-* clean up interface.
+* clean up interface
 * more test
 * more platform support and portability
 * make BigInt work on any data length (a.k.a make BigInt's length great again)
