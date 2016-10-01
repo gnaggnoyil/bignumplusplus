@@ -68,7 +68,7 @@ namespace bignum{
 				ValueProxy &operator=(const ValueProxy &) = delete;
 				ValueProxy &operator=(ValueProxy &&) = delete;
 				
-				~ValueProxy() = delete;
+				~ValueProxy() = default;
 				
 				value_type operator*() const{
 					return value;
